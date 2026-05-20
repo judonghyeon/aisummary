@@ -6,11 +6,12 @@ from database import init_db
 from routers import video, result, status
 import os
 
+# 앱 시작 전에 폴더 먼저 생성
+for folder in ["static", "uploads", "downloads", "pdfs", "markdowns", "temp_chunks"]:
+    os.makedirs(folder, exist_ok=True)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 필요한 폴더 자동 생성
-    for folder in ["static", "uploads", "downloads", "pdfs", "markdowns", "temp_chunks"]:
-        os.makedirs(folder, exist_ok=True)
     init_db()
     yield
 
