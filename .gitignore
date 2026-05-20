@@ -26,3 +26,14 @@ cookies.txt
 
 # Windows 배치파일 (로컬 전용)
 *.bat
+# 폴더는 유지, 내용만 무시
+uploads/*
+!uploads/.gitkeep
+downloads/*
+!downloads/.gitkeep
+pdfs/*
+!pdfs/.gitkeep
+markdowns/*
+!markdowns/.gitkeep
+temp_chunks/*
+!temp_chunks/.gitkeep
