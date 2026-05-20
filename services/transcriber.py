@@ -3,10 +3,10 @@ from google.genai import types
 import os, subprocess
 from dotenv import load_dotenv
 
-FFMPEG = "/snap/bin/ffmpeg"
-FFPROBE = "/snap/bin/ffmpeg.ffprobe"
+import shutil; FFMPEG = shutil.which("ffmpeg") or "/snap/bin/ffmpeg"
+FFPROBE = shutil.which("ffprobe") or "/snap/bin/ffmpeg.ffprobe"
 
-load_dotenv('/mnt/c/Users/jujdh/OneDrive/바탕 화면/캡스톤/.env')
+load_dotenv()
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 MAX_CHUNK_SEC = 10 * 60

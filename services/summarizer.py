@@ -2,7 +2,7 @@ from google import genai
 import os, json
 from dotenv import load_dotenv
 
-load_dotenv('/mnt/c/Users/jujdh/OneDrive/바탕 화면/캡스톤/.env')
+load_dotenv()
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 def seconds_to_timestamp(seconds: float) -> str:
