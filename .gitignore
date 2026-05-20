@@ -1,0 +1,28 @@
+# 가상환경
+venv/
+
+# 파이썬 캐시
+__pycache__/
+*.pyc
+
+# 환경변수 (API 키 노출 방지 - 필수!)
+.env
+
+# 데이터베이스
+app.db
+
+# 처리 중 생성되는 파일들
+downloads/
+uploads/
+pdfs/
+markdowns/
+temp_chunks/
+files/
+*.mp3
+*.mp4
+
+# 쿠키 (개인정보)
+cookies.txt
+
+# Windows 배치파일 (로컬 전용)
+*.bat

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>{{ result.video_title }} - 요약 결과</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #F8FAFC; color: #1A1A2E; }
+  .container { max-width: 780px; margin: 0 auto; padding: 40px 20px; }
+  .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+  .video-info h1 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .video-meta { font-size: 12px; color: #94A3B8; }
+  .btn-group { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+  .btn { border: none; border-radius: 8px; padding: 9px 16px; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; white-space: nowrap; }
+  .btn-dark { background: #0F172A; color: white; }
+  .btn-light { background: #F1F5F9; color: #475569; border: 1px solid #E2E8F0; }
+  .btn-light:hover { background: #E2E8F0; }
+
+  /* 재요약 */
+  .resummarize { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; padding: 12px 16px; background: white; border: 1px solid #E2E8F0; border-radius: 10px; }
+  .resummarize select { border: 1px solid #E2E8F0; border-radius: 6px; padding: 6px 10px; font-size: 12px; color: #475569; outline: none; }
+  .resummarize span { font-size: 12px; color: #64748B; flex: 1; }
+
+  .divider { height: 1px; background: #E2E8F0; margin: 20px 0; }
+  .section-title { font-size: 11px; font-weight: 700; color: #94A3B8; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+  .summary-box { background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; font-size: 14px; line-height: 1.8; color: #334155; margin-bottom: 20px; position: relative; }
+  .copy-btn { position: absolute; top: 12px; right: 12px; background: none; border: 1px solid #E2E8F0; border-radius: 6px; padding: 4px 10px; font-size: 11px; color: #64748B; cursor: pointer; }
+  .copy-btn:hover { background: #F1F5F9; }
+  .keywords { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+  .keyword { background: #F1F5F9; color: #475569; font-size: 12px; padding: 4px 12px; border-radius: 20px; border: 1px solid #E2E8F0; }
+
+  /* 챕터 */
+  .chapter { display: flex; gap: 14px; background: white; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+  .ch-time { font-size: 11px; font-weight: 700; color: #3B82F6; background: #EFF6FF; padding: 3px 8px; border-radius: 6px; white-space: nowrap; height: fit-content; text-decoration: none; }
+  .ch-time:hover { background: #DBEAFE; }
+  .ch-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .ch-summary { font-size: 12px; color: #64748B; line-height: 1.6; }
+
+  /* 스크립트 토글 */
+  .toggle-btn { width: 100%; background: white; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px; text-align: left; font-size: 13px; font-weight: 600; color: #475569; cursor: pointer; display: flex; justify-content: space-between; margin-top: 8px; }
+  .script-box { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 16px; font-size: 12px; line-height: 1.8; color: #64748B; margin-top: 8px; display: none; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="video-info">
+      <h1>{{ result.video_title }}</h1>
+      <div class="video-meta">챕터 {{ result.chapters | length }}개 · 자동 생성 요약</div>
+    </div>
+    <div class="btn-group">
+      <a href="/result/{{ result.task_id }}/pdf" class="btn btn-dark">📄 PDF</a>
+      <a href="/result/{{ result.task_id }}/markdown" class="btn btn-light">📝 MD</a>
+    </div>
+  </div>
+
+  <!-- 재요약 -->
+  <form class="resummarize" action="/result/{{ result.task_id }}/resummarize" method="post">
+    <span>🔄 다른 스타일로 다시 요약</span>
+    <select name="style">
+      <option value="short">짧게 (1~2문장)</option>
+      <option value="normal" selected>보통 (3~5문장)</option>
+      <option value="detail">자세히 (7~10문장)</option>
+    </select>
+    <button type="submit" class="btn btn-light">재요약</button>
+  </form>
+
+  <div class="divider"></div>
+
+  <!-- 전체 요약 -->
+  <div class="section-title">전체 요약</div>
+  <div class="summary-box">
+    <button class="copy-btn" onclick="navigator.clipboard.writeText(this.nextElementSibling.textContent); this.textContent='✅ 복사됨'">복사</button>
+    <span>{{ result.summary }}</span>
+  </div>
+
+  <!-- 키워드 -->
+  <div class="section-title">키워드</div>
+  <div class="keywords">
+    {% for kw in result.keywords %}
+    <span class="keyword">{{ kw }}</span>
+    {% endfor %}
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 챕터별 요약 -->
+  <div class="section-title">챕터별 요약</div>
+  {% for ch in result.chapters %}
+  <div class="chapter">
+    {% if result.video_url and 'youtube' in result.video_url %}
+    <a href="{{ result.video_url }}&t={{ ch.start_time.replace(':', 'm') }}s"
+       target="_blank" class="ch-time" title="YouTube에서 해당 구간으로 이동">
+      {{ ch.start_time }}
+    </a>
+    {% else %}
+    <span class="ch-time" data-time="{{ ch.start_time }}" title="클릭하면 YouTube 해당 구간으로 이동">{{ ch.start_time }} ▶</span>
+    {% endif %}
+    <div>
+      <div class="ch-title">{{ ch.title }}</div>
+      <div class="ch-summary">{{ ch.summary }}</div>
+    </div>
+  </div>
+  {% endfor %}
+
+  <!-- 원본 스크립트 -->
+  <button class="toggle-btn" onclick="
+    const box = document.getElementById('scriptBox');
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    this.querySelector('span').textContent = box.style.display === 'none' ? '▼' : '▲';
+  ">
+    📝 원본 스크립트 보기 <span>▼</span>
+  </button>
+  <div class="script-box" id="scriptBox">{{ result.full_script }}</div>
+
+</div>
+</body>
+</html>
+<script>
+// 타임스탬프 클릭 시 YouTube 해당 구간으로 이동
+document.querySelectorAll('.ch-time[data-time]').forEach(el => {
+  el.style.cursor = 'pointer';
+  el.addEventListener('click', () => {
+    const time = el.dataset.time;
+    const parts = time.split(':').map(Number);
+    let seconds = 0;
+    if (parts.length === 3) seconds = parts[0]*3600 + parts[1]*60 + parts[2];
+    else if (parts.length === 2) seconds = parts[0]*60 + parts[1];
+
+    const videoUrl = "{{ result.video_url or '' }}";
+    if (videoUrl.includes('youtube') || videoUrl.includes('youtu.be')) {
+      const base = videoUrl.split('&t=')[0];
+      window.open(base + '&t=' + seconds + 's', '_blank');
+    }
+  });
+});
+</script>

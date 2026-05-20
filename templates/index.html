@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>영상 요약 서비스</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #F8FAFC; color: #1A1A2E; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .container { width: 100%; max-width: 600px; padding: 40px 20px; }
+  .badge { display: inline-block; background: #EFF6FF; color: #3B82F6; font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 20px; margin-bottom: 16px; }
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; line-height: 1.35; }
+  .sub { font-size: 14px; color: #64748B; margin-bottom: 32px; line-height: 1.7; }
+  .card { background: white; border: 1.5px solid #E2E8F0; border-radius: 14px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-bottom: 12px; }
+  .card label { font-size: 13px; font-weight: 600; color: #374151; display: block; margin-bottom: 10px; }
+  .input-row { display: flex; gap: 10px; }
+  .input-row input { flex: 1; border: 1.5px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; font-size: 13px; outline: none; }
+  .input-row input:focus { border-color: #3B82F6; }
+  .btn { background: #0F172A; color: white; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn:hover { background: #1E293B; }
+
+  /* 요약 길이 선택 */
+  .length-select { display: flex; gap: 8px; margin-top: 14px; }
+  .length-btn { flex: 1; border: 1.5px solid #E2E8F0; border-radius: 8px; padding: 8px 0; font-size: 12px; font-weight: 600; cursor: pointer; background: white; color: #64748B; transition: all 0.2s; }
+  .length-btn:hover { border-color: #3B82F6; color: #3B82F6; }
+  .length-radio:checked + .length-btn { background: #EFF6FF; border-color: #3B82F6; color: #3B82F6; }
+  .length-radio { display: none; }
+  .length-label { display: flex; flex-direction: column; align-items: center; cursor: pointer; flex: 1; }
+  .length-desc { font-size: 10px; color: #94A3B8; margin-top: 2px; font-weight: 400; }
+
+  .or { text-align: center; color: #CBD5E1; font-size: 12px; margin: 4px 0; }
+  .upload-area { border: 1.5px dashed #CBD5E1; border-radius: 10px; padding: 24px; text-align: center; color: #94A3B8; font-size: 13px; cursor: pointer; }
+  .upload-area:hover { border-color: #3B82F6; color: #3B82F6; }
+  .upload-btn { background: #0F172A; color: white; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 12px; width: 100%; }
+
+  /* 최근 기록 */
+  .recent-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #F1F5F9; text-decoration: none; color: #0F172A; }
+  .recent-item:last-child { border-bottom: none; }
+  .recent-thumb { width: 64px; height: 42px; border-radius: 6px; object-fit: cover; background: #E2E8F0; flex-shrink: 0; }
+  .recent-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .recent-date { font-size: 11px; color: #94A3B8; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="badge">AI 영상 요약</div>
+  <h1>영상 URL을 붙여넣으면<br>핵심만 정리해드려요</h1>
+  <p class="sub">YouTube 강의, 세미나 영상을 챕터별 요약 문서로 변환해드려요</p>
+
+  <!-- URL 입력 -->
+  <div class="card">
+    <label>🔗 YouTube URL 입력</label>
+    <form action="/submit/url" method="post">
+      <div class="input-row">
+        <input type="text" name="url" placeholder="https://youtube.com/watch?v=..." required>
+        <button type="submit" class="btn">요약 시작</button>
+      </div>
+
+      <!-- 요약 길이 선택 -->
+      <div style="margin-top:16px">
+        <div style="font-size:12px;font-weight:600;color:#64748B;margin-bottom:8px">📏 요약 길이</div>
+        <div class="length-select">
+          <label class="length-label">
+            <input class="length-radio" type="radio" name="summary_length" value="short">
+            <span class="length-btn">짧게<span class="length-desc">1~2문장</span></span>
+          </label>
+          <label class="length-label">
+            <input class="length-radio" type="radio" name="summary_length" value="normal" checked>
+            <span class="length-btn" style="background:#EFF6FF;border-color:#3B82F6;color:#3B82F6">보통<span class="length-desc">3~5문장</span></span>
+          </label>
+          <label class="length-label">
+            <input class="length-radio" type="radio" name="summary_length" value="detail">
+            <span class="length-btn">자세히<span class="length-desc">7~10문장</span></span>
+          </label>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="or">또는</div>
+
+  <!-- 파일 업로드 -->
+  <div class="card">
+    <label>📁 mp4 파일 업로드</label>
+    <form action="/submit/file" method="post" enctype="multipart/form-data">
+      <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+        클릭하거나 파일을 드래그해서 업로드<br>
+        <small style="color:#CBD5E1">mp4 형식만 지원</small>
+        <input type="file" id="fileInput" name="file" accept=".mp4" style="display:none"
+               onchange="document.getElementById('fileName').textContent = this.files[0].name">
+      </div>
+      <div id="fileName" style="font-size:12px;color:#64748B;margin-top:8px;text-align:center"></div>
+      <div style="margin-top:12px">
+        <div style="font-size:12px;font-weight:600;color:#64748B;margin-bottom:8px">📏 요약 길이</div>
+        <div class="length-select">
+          <label class="length-label">
+            <input class="length-radio" type="radio" name="summary_length" value="short">
+            <span class="length-btn">짧게<span class="length-desc">1~2문장</span></span>
+          </label>
+          <label class="length-label">
+            <input class="length-radio" type="radio" name="summary_length" value="normal" checked>
+            <span class="length-btn" style="background:#EFF6FF;border-color:#3B82F6;color:#3B82F6">보통<span class="length-desc">3~5문장</span></span>
+          </label>
+          <label class="length-label">
+            <input class="length-radio" type="radio" name="summary_length" value="detail">
+            <span class="length-btn">자세히<span class="length-desc">7~10문장</span></span>
+          </label>
+        </div>
+      </div>
+      <button type="submit" class="upload-btn">업로드 후 요약 시작</button>
+    </form>
+  </div>
+
+  <!-- 최근 처리 기록 -->
+  {% if recent %}
+  <div class="card">
+    <label>🕘 최근 처리한 영상</label>
+    {% for item in recent %}
+    <a href="/result/{{ item.id }}" class="recent-item">
+      {% if item.thumbnail_url %}
+      <img src="{{ item.thumbnail_url }}" class="recent-thumb">
+      {% else %}
+      <div class="recent-thumb" style="display:flex;align-items:center;justify-content:center;font-size:18px">🎬</div>
+      {% endif %}
+      <div>
+        <div class="recent-title">{{ item.video_title or "제목 없음" }}</div>
+        <div class="recent-date">{{ item.created_at }}</div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+  // 요약 길이 버튼 선택 시 스타일 변경
+  document.querySelectorAll('.length-radio').forEach(radio => {
+    radio.addEventListener('change', () => {
+      const form = radio.closest('form');
+      form.querySelectorAll('.length-btn').forEach(btn => {
+        btn.style.background = 'white';
+        btn.style.borderColor = '#E2E8F0';
+        btn.style.color = '#64748B';
+      });
+      radio.nextElementSibling.style.background = '#EFF6FF';
+      radio.nextElementSibling.style.borderColor = '#3B82F6';
+      radio.nextElementSibling.style.color = '#3B82F6';
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>처리 중...</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #F8FAFC; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .container { width: 100%; max-width: 500px; padding: 40px 20px; }
+  h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .sub { font-size: 13px; color: #64748B; margin-bottom: 6px; }
+  .estimated { font-size: 12px; color: #94A3B8; margin-bottom: 24px; }
+  .progress-wrap { margin-bottom: 20px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: #94A3B8; margin-bottom: 8px; }
+  .progress-bar { height: 6px; background: #E2E8F0; border-radius: 99px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #3B82F6, #60A5FA); border-radius: 99px; transition: width 0.5s; }
+  .steps { display: flex; flex-direction: column; gap: 10px; }
+  .step { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 10px; background: white; border: 1px solid #E2E8F0; }
+  .step.done   { border-color: #BBF7D0; background: #F0FDF4; }
+  .step.active { border-color: #93C5FD; background: #EFF6FF; }
+  .step.waiting { opacity: 0.4; }
+  .step-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+  .step.done   .step-icon { background: #DCFCE7; }
+  .step.active .step-icon { background: #DBEAFE; }
+  .step.waiting .step-icon { background: #F1F5F9; }
+  .step-info { flex: 1; }
+  .step-name { font-size: 13px; font-weight: 600; }
+  .step-sub  { font-size: 11px; color: #94A3B8; margin-top: 2px; }
+  .step-status { font-size: 11px; font-weight: 600; }
+  .step.done   .step-status { color: #16A34A; }
+  .step.active .step-status { color: #3B82F6; }
+  .failed { background: #FEF2F2; border: 1px solid #FECACA; border-radius: 10px; padding: 16px; color: #DC2626; font-size: 13px; margin-top: 16px; display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>영상 처리 중이에요</h2>
+  <p class="sub" id="progressText">{{ task.progress }}</p>
+  <p class="estimated">⏱ {{ task.estimated_time or "" }}</p>
+
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span id="stepLabel">처리 중...</span>
+      <span id="pct">0%</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step" id="step-1">
+      <div class="step-icon">📥</div>
+      <div class="step-info">
+        <div class="step-name">오디오 추출</div>
+        <div class="step-sub">yt-dlp + ffmpeg</div>
+      </div>
+      <div class="step-status"></div>
+    </div>
+    <div class="step waiting" id="step-2">
+      <div class="step-icon">🎙️</div>
+      <div class="step-info">
+        <div class="step-name">STT 변환</div>
+        <div class="step-sub">Gemini API</div>
+      </div>
+      <div class="step-status"></div>
+    </div>
+    <div class="step waiting" id="step-3">
+      <div class="step-icon">🌐</div>
+      <div class="step-info">
+        <div class="step-name">언어 감지 · 번역</div>
+        <div class="step-sub">외국어 영상 자동 번역</div>
+      </div>
+      <div class="step-status"></div>
+    </div>
+    <div class="step waiting" id="step-4">
+      <div class="step-icon">🤖</div>
+      <div class="step-info">
+        <div class="step-name">AI 요약</div>
+        <div class="step-sub">Gemini API</div>
+      </div>
+      <div class="step-status"></div>
+    </div>
+    <div class="step waiting" id="step-5">
+      <div class="step-icon">📄</div>
+      <div class="step-info">
+        <div class="step-name">PDF 생성</div>
+        <div class="step-sub">pdfkit</div>
+      </div>
+      <div class="step-status"></div>
+    </div>
+  </div>
+
+  <div class="failed" id="failedBox"></div>
+</div>
+
+<script>
+  const taskId = "{{ task.id }}";
+  const stepMap = {
+    "오디오 추출 중":     { step: 1, pct: 15 },
+    "STT 변환 중":        { step: 2, pct: 40 },
+    "한국어로 번역 중":   { step: 3, pct: 60 },
+    "AI 요약 중":         { step: 4, pct: 75 },
+    "PDF 생성 중":        { step: 5, pct: 90 },
+    "완료":               { step: 5, pct: 100 },
+  };
+
+  function updateUI(progress, status) {
+    const info = stepMap[progress] || { step: 1, pct: 5 };
+    document.getElementById("progressText").textContent = progress;
+    document.getElementById("stepLabel").textContent = progress;
+    document.getElementById("pct").textContent = info.pct + "%";
+    document.getElementById("progressFill").style.width = info.pct + "%";
+
+    for (let i = 1; i <= 5; i++) {
+      const el = document.getElementById("step-" + i);
+      const statusEl = el.querySelector(".step-status");
+      el.className = "step";
+      if (i < info.step)       { el.classList.add("done");    statusEl.textContent = "완료"; }
+      else if (i === info.step) { el.classList.add("active");  statusEl.textContent = "진행 중"; }
+      else                      { el.classList.add("waiting"); statusEl.textContent = ""; }
+    }
+
+    if (status === "FAILED") {
+      document.getElementById("failedBox").style.display = "block";
+      document.getElementById("failedBox").textContent = "❌ 오류: " + progress;
+    }
+  }
+
+  async function poll() {
+    const res = await fetch("/api/status/" + taskId);
+    const data = await res.json();
+    updateUI(data.progress, data.status);
+    if (data.status === "DONE") {
+      window.location.href = "/result/" + taskId;
+    } else if (data.status !== "FAILED") {
+      setTimeout(poll, 3000);
+    }
+  }
+
+  updateUI("{{ task.progress }}", "{{ task.status }}");
+  {% if task.status not in ["DONE", "FAILED"] %}
+  setTimeout(poll, 3000);
+  {% endif %}
+</script>
+</body>
+</html>
