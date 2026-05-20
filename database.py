@@ -1,31 +1,31 @@
-# database.py
-import sqlite3
 import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
-DB_PATH = "app.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row   # dict처럼 컬럼명으로 접근 가능
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     return conn
 
 def init_db():
     conn = get_db()
-    conn.executescript("""
+    cur = conn.cursor()
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS tasks (
             id             TEXT PRIMARY KEY,
             status         TEXT NOT NULL DEFAULT 'PENDING',
             progress       TEXT,
             video_url      TEXT,
             summary_length TEXT DEFAULT 'normal',
-            estimated_time TEXT
-            summary_length TEXT DEFAULT 'normal',  -- 추가
-            created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+            estimated_time TEXT,
+            created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-
+    """)
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS results (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            id            SERIAL PRIMARY KEY,
             task_id       TEXT NOT NULL REFERENCES tasks(id),
             video_url     TEXT,
             video_title   TEXT,
@@ -36,8 +36,9 @@ def init_db():
             chapters      TEXT,
             keywords      TEXT,
             pdf_path      TEXT,
-            created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+            created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
     conn.commit()
+    cur.close()
     conn.close()
