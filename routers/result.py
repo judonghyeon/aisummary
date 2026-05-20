@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from database import get_db
+from database import get_db, query
 from services.md_maker import make_markdown
 from services.summarizer import summarize
 import json
@@ -12,9 +12,9 @@ templates = Jinja2Templates(directory="templates")
 @router.get("/result/{task_id}")
 async def result_page(request: Request, task_id: str):
     conn = get_db()
-    result = conn.execute(
-        "SELECT * FROM results WHERE task_id = ?", (task_id,)
-    ).fetchone()
+    cur = query(conn, "SELECT * FROM results WHERE task_id = %s", (task_id,))
+    result = cur.fetchone()
+    cur.close()
     conn.close()
 
     if not result:
@@ -32,9 +32,9 @@ async def result_page(request: Request, task_id: str):
 @router.get("/result/{task_id}/pdf")
 async def download_pdf(task_id: str):
     conn = get_db()
-    result = conn.execute(
-        "SELECT pdf_path, video_title FROM results WHERE task_id = ?", (task_id,)
-    ).fetchone()
+    cur = query(conn, "SELECT pdf_path, video_title FROM results WHERE task_id = %s", (task_id,))
+    result = cur.fetchone()
+    cur.close()
     conn.close()
 
     if not result or not result["pdf_path"]:
@@ -46,9 +46,9 @@ async def download_pdf(task_id: str):
 @router.get("/result/{task_id}/markdown")
 async def download_markdown(task_id: str):
     conn = get_db()
-    result = conn.execute(
-        "SELECT * FROM results WHERE task_id = ?", (task_id,)
-    ).fetchone()
+    cur = query(conn, "SELECT * FROM results WHERE task_id = %s", (task_id,))
+    result = cur.fetchone()
+    cur.close()
     conn.close()
 
     if not result:
@@ -71,19 +71,18 @@ async def download_markdown(task_id: str):
 @router.post("/result/{task_id}/resummarize")
 async def resummarize(task_id: str, style: str = Form("normal")):
     conn = get_db()
-    result = conn.execute(
-        "SELECT full_script FROM results WHERE task_id = ?", (task_id,)
-    ).fetchone()
-    conn.close()
+    cur = query(conn, "SELECT full_script FROM results WHERE task_id = %s", (task_id,))
+    result = cur.fetchone()
+    cur.close()
 
     if not result:
+        conn.close()
         return {"error": "결과가 없습니다"}
 
     new_result = summarize(result["full_script"], style)
 
-    conn = get_db()
-    conn.execute("""
-        UPDATE results SET summary=?, chapters=?, keywords=? WHERE task_id=?
+    query(conn, """
+        UPDATE results SET summary=%s, chapters=%s, keywords=%s WHERE task_id=%s
     """, (
         new_result["summary"],
         json.dumps(new_result["chapters"], ensure_ascii=False),

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from database import get_db
+from database import get_db, query
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -9,15 +9,14 @@ templates = Jinja2Templates(directory="templates")
 @router.get("/status/{task_id}")
 async def status_page(request: Request, task_id: str):
     conn = get_db()
-    task = conn.execute(
-        "SELECT * FROM tasks WHERE id = ?", (task_id,)
-    ).fetchone()
+    cur = query(conn, "SELECT * FROM tasks WHERE id = %s", (task_id,))
+    task = cur.fetchone()
+    cur.close()
     conn.close()
 
     if not task:
         return RedirectResponse("/")
 
-    # 완료면 바로 결과 페이지로
     if task["status"] == "DONE":
         return RedirectResponse(f"/result/{task_id}")
 
@@ -29,9 +28,9 @@ async def status_page(request: Request, task_id: str):
 @router.get("/api/status/{task_id}")
 async def status_api(task_id: str):
     conn = get_db()
-    task = conn.execute(
-        "SELECT status, progress FROM tasks WHERE id = ?", (task_id,)
-    ).fetchone()
+    cur = query(conn, "SELECT status, progress FROM tasks WHERE id = %s", (task_id,))
+    task = cur.fetchone()
+    cur.close()
     conn.close()
 
     if not task:
