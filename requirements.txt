@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+celery
+redis
+yt-dlp
+google-genai
+pydub
+python-dotenv
+jinja2
+aiofiles
+python-multipart
+pdfkit
+notion-client
