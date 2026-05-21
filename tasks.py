@@ -24,20 +24,10 @@ def update_task(task_id, status, progress):
 @celery.task(name="tasks.download")
 def download_task(task_id, url):
     try:
-        update_task(task_id, "PROCESSING", "다운로드 중")
+        update_task(task_id, "PROCESSING", "오디오 추출 중")
         audio_path, meta = download_audio(url, task_id)
         meta["video_url"] = url
-
-        if meta.get("subtitle_path"):
-            # 자막 있으면 STT 스킵하고 바로 요약으로
-            update_task(task_id, "PROCESSING", "자막 파싱 중")
-            subtitle_entries = parse_subtitle(meta["subtitle_path"])
-            script = subtitle_to_script(subtitle_entries)
-            celery.send_task("tasks.summarize", args=[task_id, script, meta, subtitle_entries])
-        else:
-            # 자막 없으면 STT로
-            celery.send_task("tasks.transcribe", args=[task_id, audio_path, meta])
-
+        celery.send_task("tasks.transcribe", args=[task_id, audio_path, meta])
     except Exception as e:
         update_task(task_id, "FAILED", f"다운로드 실패: {str(e)}")
         raise
@@ -45,11 +35,24 @@ def download_task(task_id, url):
 @celery.task(name="tasks.transcribe")
 def transcribe_task(task_id, audio_path, meta):
     try:
-        update_task(task_id, "PROCESSING", "STT 변환 중")
-        script = transcribe(audio_path)
+        subtitle_entries = []
+        script = ""
+
+        # 자막 있으면 자막 사용, 없으면 STT
+        if meta.get("subtitle_path"):
+            update_task(task_id, "PROCESSING", "자막 파싱 중")
+            subtitle_entries = parse_subtitle(meta["subtitle_path"])
+            script = subtitle_to_script(subtitle_entries)
+        
+        # STT 항상 실행 (자막 없을 때)
+        if not script or len(script.strip()) < 10:
+            update_task(task_id, "PROCESSING", "STT 변환 중")
+            script = transcribe(audio_path)
+
         if not script or len(script.strip()) < 10:
             raise Exception("스크립트 생성 실패")
-        celery.send_task("tasks.summarize", args=[task_id, script, meta, []])
+
+        celery.send_task("tasks.summarize", args=[task_id, script, meta, subtitle_entries])
     except Exception as e:
         update_task(task_id, "FAILED", f"STT 실패: {str(e)}")
         raise
@@ -57,7 +60,7 @@ def transcribe_task(task_id, audio_path, meta):
 @celery.task(name="tasks.summarize")
 def summarize_task(task_id, script, meta, subtitle_entries=[]):
     try:
-        update_task(task_id, "PROCESSING", "요약 중")
+        update_task(task_id, "PROCESSING", "AI 요약 중")
         yt_chapters = meta.get("chapters", [])
 
         if yt_chapters:
