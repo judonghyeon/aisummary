@@ -2,9 +2,11 @@ from celery_app import celery
 from database import get_db, query
 from services.downloader import download_audio
 from services.transcriber import transcribe
+from services.subtitle_parser import parse_subtitle, subtitle_to_script
 from services.summarizer import (
     summarize,
     summarize_with_youtube_chapters,
+    summarize_with_subtitles,
     translate_to_korean
 )
 from services.pdf_maker import make_pdf
@@ -25,7 +27,17 @@ def download_task(task_id, url):
         update_task(task_id, "PROCESSING", "다운로드 중")
         audio_path, meta = download_audio(url, task_id)
         meta["video_url"] = url
-        celery.send_task("tasks.transcribe", args=[task_id, audio_path, meta])
+
+        if meta.get("subtitle_path"):
+            # 자막 있으면 STT 스킵하고 바로 요약으로
+            update_task(task_id, "PROCESSING", "자막 파싱 중")
+            subtitle_entries = parse_subtitle(meta["subtitle_path"])
+            script = subtitle_to_script(subtitle_entries)
+            celery.send_task("tasks.summarize", args=[task_id, script, meta, subtitle_entries])
+        else:
+            # 자막 없으면 STT로
+            celery.send_task("tasks.transcribe", args=[task_id, audio_path, meta])
+
     except Exception as e:
         update_task(task_id, "FAILED", f"다운로드 실패: {str(e)}")
         raise
@@ -37,22 +49,26 @@ def transcribe_task(task_id, audio_path, meta):
         script = transcribe(audio_path)
         if not script or len(script.strip()) < 10:
             raise Exception("스크립트 생성 실패")
-        celery.send_task("tasks.summarize", args=[task_id, script, meta])
+        celery.send_task("tasks.summarize", args=[task_id, script, meta, []])
     except Exception as e:
         update_task(task_id, "FAILED", f"STT 실패: {str(e)}")
         raise
 
 @celery.task(name="tasks.summarize")
-def summarize_task(task_id, script, meta):
+def summarize_task(task_id, script, meta, subtitle_entries=[]):
     try:
         update_task(task_id, "PROCESSING", "요약 중")
         yt_chapters = meta.get("chapters", [])
+
         if yt_chapters:
             result = summarize_with_youtube_chapters(script, yt_chapters)
+        elif subtitle_entries:
+            result = summarize_with_subtitles(subtitle_entries)
         else:
             result = summarize(script)
 
         if result.get("language") != "한국어":
+            update_task(task_id, "PROCESSING", "번역 중")
             result = translate_to_korean(result)
 
         update_task(task_id, "PROCESSING", "PDF 생성 중")
@@ -79,6 +95,7 @@ def summarize_task(task_id, script, meta):
         conn.commit()
         conn.close()
         update_task(task_id, "DONE", "완료")
+
     except Exception as e:
         update_task(task_id, "FAILED", f"요약 실패: {str(e)}")
         raise
