@@ -151,3 +151,16 @@
 </script>
 </body>
 </html>
+<script>
+document.querySelectorAll('form').forEach(form => {
+  form.addEventListener('submit', function() {
+    const btn = this.querySelector('button[type="submit"]');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '처리 중...';
+      btn.style.opacity = '0.6';
+      btn.style.cursor = 'not-allowed';
+    }
+  });
+});
+</script>

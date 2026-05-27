@@ -43,9 +43,22 @@ async def submit_url(url: str = Form(...), summary_length: str = Form("normal"))
     if not url.startswith("http"):
         return RedirectResponse("/?error=invalid_url", status_code=303)
 
+    # 중복 체크: 같은 URL이 이미 처리 중이면 기존 task로 리다이렉트
+    conn = get_db()
+    cur = query(conn, """
+        SELECT id FROM tasks
+        WHERE video_url = %s AND status IN ('PENDING', 'PROCESSING')
+        ORDER BY created_at DESC LIMIT 1
+    """, (url,))
+    existing = cur.fetchone()
+    cur.close()
+
+    if existing:
+        conn.close()
+        return RedirectResponse(f"/status/{existing['id']}", status_code=303)
+
     task_id = str(uuid.uuid4())
     estimated_time = estimate_time(url)
-    conn = get_db()
     query(conn,
         "INSERT INTO tasks (id, status, progress, video_url, summary_length, estimated_time) VALUES (%s, %s, %s, %s, %s, %s)",
         (task_id, "PENDING", "대기 중", url, summary_length, estimated_time)
