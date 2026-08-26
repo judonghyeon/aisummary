@@ -1,6 +1,6 @@
 # AI Summary
 
-## 담당 역할 및 기여도
+Claude 를 활용하여 제작했습니다.
 
 - **백엔드**
   - Python/FastAPI 기반 서버 및 API 구현
