@@ -25,14 +25,14 @@ def update_task(task_id: str, status: str, progress: str):
 def process_video(self, task_id: str, url: str = None, file_path: str = None, summary_length: str = "normal"):
     try:
         # =========================================
-        # 1️⃣ 다운로드
+        # 다운로드
         # =========================================
         update_task(task_id, "PROCESSING", "오디오 추출 중")
 
         if url:
             audio_path, meta = download_audio(url, task_id)
 
-            # 🔥 meta None 방어
+            # meta None 방어
             if not meta:
                 raise Exception("영상 메타데이터 수집 실패")
         else:
@@ -52,7 +52,7 @@ def process_video(self, task_id: str, url: str = None, file_path: str = None, su
                 "subtitle_path": None
             }
 
-        # 🔥 meta 안전 접근
+        # meta 안전 접근
         title = meta.get("title", "Unknown")
         thumbnail = meta.get("thumbnail", "")
         duration = meta.get("duration", 0)
@@ -60,7 +60,7 @@ def process_video(self, task_id: str, url: str = None, file_path: str = None, su
         subtitle_path = meta.get("subtitle_path")
 
         # =========================================
-        # 2️⃣ 스크립트 생성
+        # 스크립트 생성
         # =========================================
         script = ""
         subtitle_entries = []
@@ -74,17 +74,17 @@ def process_video(self, task_id: str, url: str = None, file_path: str = None, su
                 subtitle_entries = []
                 script = ""
 
-        # 🔥 자막 실패 or 없음 → STT
+        # 자막 실패 or 없음 → STT
         if not script:
             update_task(task_id, "PROCESSING", "STT 변환 중")
             script = transcribe(audio_path)
 
-        # 🔥 STT 실패 방어
+        # STT 실패 방어
         if not script or len(script.strip()) < 10:
             raise Exception("스크립트 생성 실패")
 
         # =========================================
-        # 3️⃣ 요약
+        # 요약
         # =========================================
         try:
             if yt_chapters:
@@ -100,11 +100,11 @@ def process_video(self, task_id: str, url: str = None, file_path: str = None, su
                 result = summarize(script, summary_length)
 
         except Exception:
-            # 🔥 요약 실패 fallback
+            # 요약 실패 fallback
             result = summarize(script, summary_length)
 
         # =========================================
-        # 4️⃣ 번역
+        # 번역
         # =========================================
         try:
             if result.get("language") != "한국어":
@@ -114,13 +114,13 @@ def process_video(self, task_id: str, url: str = None, file_path: str = None, su
             pass  # 번역 실패해도 계속 진행
 
         # =========================================
-        # 5️⃣ PDF
+        # PDF
         # =========================================
         update_task(task_id, "PROCESSING", "PDF 생성 중")
         pdf_path = make_pdf(task_id, title, result, script)
 
         # =========================================
-        # 6️⃣ 저장
+        # 저장
         # =========================================
         conn = get_db()
         conn.execute("""
