@@ -1,6 +1,6 @@
 # AI Summary
 
-이 프로젝트는 Claude 를 활용하여 제작했습니다.
+이 프로젝트는 AI를 활용하여 제작했습니다.
 
 - **백엔드**
   - Python/FastAPI 기반 서버 및 API 구현
